@@ -96,10 +96,10 @@ for(int j=0; j<bounds.size(); j++){
 		xpos[3].push_back((row-320)*ssdPitch-residuals[3]);
 		zpos[3].push_back(station1_zpos+station_thickness);		
 	}else if(fer ==2 && module==0){
-		xpos[4].push_back((row)*ssdPitch-residuals[4]);
+		xpos[4].push_back(-(row)*ssdPitch-residuals[4]);
 		zpos[4].push_back(station2_zpos);
 	}else if(fer ==2 && module==1){
-		xpos[4].push_back(-(row)*ssdPitch-residuals[4]);
+		xpos[4].push_back((row)*ssdPitch-residuals[4]);
 		zpos[4].push_back(station2_zpos);		
 	}else if(fer ==3 && module==0){
 		xpos[5].push_back((row-640)*ssdPitch-residuals[5]);
@@ -205,10 +205,10 @@ for(int j=0; j<bounds.size(); j++){
 		xpos[3].push_back((row-320)*ssdPitch-residuals[3]);
 		zpos[3].push_back(station1_zpos+station_thickness);		
 	}else if(fer ==2 && module==0){
-		xpos[4].push_back((row)*ssdPitch-residuals[4]);
+		xpos[4].push_back(-(row)*ssdPitch-residuals[4]);
 		zpos[4].push_back(station2_zpos);
 	}else if(fer ==2 && module==1){
-		xpos[5].push_back(-(row)*ssdPitch-residuals[5]);
+		xpos[5].push_back((row)*ssdPitch-residuals[5]);
 		zpos[5].push_back(station2_zpos);		
 	}else if(fer ==3 && module==0){
 		xpos[6].push_back((row-640)*ssdPitch-residuals[6]);
@@ -228,9 +228,7 @@ for(int j=0; j<bounds.size(); j++){
     && (zpos[2].size()==1 || (zpos[2].size()==2 && abs(xpos[2][0]-xpos[2][1])<constr ))
     && (zpos[3].size()==1 || (zpos[3].size()==2 && abs(xpos[3][0]-xpos[3][1])<constr ))
     && (((zpos[4].size()==1|| (zpos[4].size()==2 && abs(xpos[4][0]-xpos[4][1])<constr )) && zpos[5].size()==0)
-    ||  ((zpos[5].size()==1|| (zpos[5].size()==2 && abs(xpos[5][0]-xpos[5][1])<constr )) && zpos[4].size()==0))
-    && (((zpos[6].size()==1|| (zpos[6].size()==2 && abs(xpos[6][0]-xpos[6][1])<constr )) && zpos[7].size()==0)
-    ||  ((zpos[7].size()==1|| (zpos[7].size()==2 && abs(xpos[7][0]-xpos[7][1])<constr )) && zpos[6].size()==0)) ){
+    ||  ((zpos[5].size()==1|| (zpos[5].size()==2 && abs(xpos[5][0]-xpos[5][1])<constr )) && zpos[4].size()==0)) ){
 	accepted_tracks.push_back(j);
 
 	for(int i=0;i<zpos.size();i++){
@@ -311,9 +309,9 @@ for(int i=0; i<t1->GetEntries(); i++){
 	}else if(fer ==1 && module==3){
 		h1->Fill(station1_zpos+station_thickness,(row-320)*ssdPitch-residuals[3]);	
 	}else if(fer ==2 && module==0){
-		h1->Fill(station2_zpos,(row)*ssdPitch-residuals[4]);		
+		h1->Fill(station2_zpos,-(row)*ssdPitch-residuals[4]);		
 	}else if(fer ==2 && module==1){
-		h1->Fill(station2_zpos,-(row)*ssdPitch-residuals[5]);		
+		h1->Fill(station2_zpos,(row)*ssdPitch-residuals[5]);		
 	}else if(fer ==3 && module==0){
 		h1->Fill(station2_zpos+station_thickness,(row-640)*ssdPitch-residuals[6]);		
 	}else if(fer ==3 && module==1){
@@ -377,10 +375,10 @@ void xplot(vector<double> residuals, int event){
 			xpos[start].push_back((row-320)*ssdPitch-residuals[3]);
 			zpos[start].push_back(station1_zpos+station_thickness);
 		}else if(fer ==2 && module==0){
-			xpos[start].push_back((row)*ssdPitch-residuals[4]);
+			xpos[start].push_back(-(row)*ssdPitch-residuals[4]);
 			zpos[start].push_back(station2_zpos);
 		}else if(fer ==2 && module==1){
-			xpos[start].push_back(-(row)*ssdPitch-residuals[5]);
+			xpos[start].push_back((row)*ssdPitch-residuals[5]);
 			zpos[start].push_back(station2_zpos);
 		}else if(fer ==3 && module==0){
 			xpos[start].push_back((row-640)*ssdPitch-residuals[6]);
@@ -460,10 +458,10 @@ double with_fit(vector<double>residuals, int event){
 		xpos.push_back((row-320)*ssdPitch-residuals[3]);
 		zpos.push_back(station1_zpos+station_thickness);		
 	}else if(fer ==2 && module==0){
-		xpos.push_back((row)*ssdPitch-residuals[4]);
+		xpos.push_back(-(row)*ssdPitch-residuals[4]);
 		zpos.push_back(station2_zpos);
 	}else if(fer ==2 && module==1){
-		xpos.push_back(-(row)*ssdPitch-residuals[4]);
+		xpos.push_back((row)*ssdPitch-residuals[4]);
 		zpos.push_back(station2_zpos);		
 	}else if(fer ==3 && module==0){
 		xpos.push_back((row-640)*ssdPitch-residuals[5]);
@@ -505,22 +503,16 @@ vector<vector<double>> alignments;
 void xwith_constr(){
    
   //xhist();
-  /*
-  alignments.push_back(initial_xalign({0,0,0,0,0,0,0,0}));
   
-  for(int i=0;i<6;i++){
-	alignments.push_back(xalign(alignments[i]));
-	}
-  */	 
-   /*
-   xalign({0,0,0,0,0,0,0,0});
    
-   TH1* h1 = new TH1I("h1", "#chi^{2} with alignment", 104, 0, 8000);
-   TH1* h2 = new TH1I("h2", "#chi^{2} without alignment", 104, 0,8000);
+   xalign({0,0,0,0,0,0,0,0});
+   auto c = new TCanvas("c","c");
+   TH1* h1 = new TH1I("h1", "#chi^{2} with alignment", 104, 0, 1000);
+   TH1* h2 = new TH1I("h2", "#chi^{2} without alignment", 104, 0,1000);
  
    for(int i=0; i<accepted_tracks.size(); i++){
         cout<<i<<", ";
-   	double with = with_fit({ -1.2695828, -0.33297059, 0.95427081, 1.6136993, -1.8158913, -2.7851771, 1.6198023, 1.7130082 },accepted_tracks[i]);
+   	double with = with_fit({ 0.40915299, 0.17117579, -0.39629410, -0.40035819, -0.030573155, -0.0073601431, 0.28673316, 1.1109865 },accepted_tracks[i]);
 	double without =with_fit({0,0,0,0,0,0,0,0},accepted_tracks[i]);
         
 	h1->Fill(with/0.0036);
@@ -549,9 +541,7 @@ void xwith_constr(){
   hstack->GetXaxis()->SetTitle("Chi Squared");
   hstack->GetYaxis()->SetTitle("counts");
   gPad->BuildLegend(0.75,0.75,0.95,0.95,"");
-  //gPad->SetLogx();
-  //{ -0.45951492, 0.27765722, 1.2212789, 1.6770144, -3.0814708, -3.5427020, 0.14455361, 0.68543828} start with average
-*/
+  
 }
 
 
