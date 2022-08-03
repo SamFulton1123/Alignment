@@ -6,16 +6,25 @@
 #include <algorithm> 
 #include <stdio.h>
 #include <string.h> 
+#include <numeric>
+#include "printing.C"
 
-vector<int>accepted_tracks;
-int spill = 1;
-char infile[ ] = "../data/599/SSD20.root";
+
+char infile[ ] = "../data/599/SSD2.root";
 double station0_zpos = -170;
-double station1_zpos = 160;
-double station2_zpos = 920;
-double station_thickness = 120;
+double station1_zpos = 194;
+double station2_zpos = 768;
+double station_thickness = 124;
+double station2_thickness = 226;
 double ssdPitch = 0.06;
 double constr = 0.07;
+
+vector<double> xresiduals =  { -0.54759960, -0.25566729, 0.49941560, 0.54903480, -1.9639748, 0.46639482, -2.2882809, -0.088365250 };//300, { -0.48217263, -0.21014961, 0.50731036, 0.53800422, -2.0419823, 0.37994331, -2.4031378, -0.21027787 };
+vector<double> yresiduals =  {  -1.46018,  -0.90429,  0.174014,  0.729234,  2.67872,  2.83762,  3.73049,  3.85003};//{ 0.30217235, 1.1305285, 2.2554511, 2.8074963, -0.60025912, -2.8860684, 3.5960561, 1.3911136 };//300 { -1.4549245, -0.24419160, 1.6180551, 2.5482706, 0.52150012, -1.7596827, 5.4426099, 3.2489963 };
+vector<double> xcenters={xresiduals[4]/2+xresiduals[5]/2,xresiduals[6]/2+xresiduals[7]/2};
+vector<double> ycenters={yresiduals[4]/2+yresiduals[5]/2,yresiduals[6]/2+yresiduals[7]/2};
+
+//{-1.4853	,   -0.499804	,   0.87247	,   1.57393	,   -0.815158	,   -3.13893	,   3.4796	,   1.23058};
 
 
 //.........................................................................
@@ -53,13 +62,296 @@ vector<int> bounds = find_bounds();
 //.........................................................................
 
 
-vector<double> initial_xalign(vector<double> residuals){
-    
-   // Returns vector of averages of hits for each SSD
-   // Use to center SSDs before alignment 
+vector<int> find_accepted_tracks(){
 
-   vector<double> new_residuals = {0,0,0,0,0,0}; 
-   vector<int>counts = {0,0,0,0,0,0};
+
+   /*
+   //beam profiles
+   TH2F** beam_array = new TH2F*[6];
+   double sizes = 30;
+   int bin = 100;
+   beam_array[0] = new TH2F("h7","First Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[1] = new TH2F("h8","Second Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[2] = new TH2F("h9","Third Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[3] = new TH2F("h10","Fourth Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[4] = new TH2F("h11","Fith Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[5] = new TH2F("h12","Fith Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   */
+   
+   //Returns a vector with single particle events
+   vector<int> result;
+  
+   //Read in data from SSD.root tree 
+   TFile *f = new TFile(infile);
+   TTree *t1 = (TTree*)f->Get("SSDtree");
+   int fer, module, row;
+   t1->SetBranchAddress("fer",&fer);
+   t1->SetBranchAddress("module",&module);
+   t1->SetBranchAddress("row",&row);
+   
+
+   //loops over single event and fills vector
+   for(int j=0; j<bounds.size(); j++){
+
+      vector<vector<double>> ypos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> yzpos = {{},{},{},{},{},{},{},{}};
+   
+      vector<vector<double>> xpos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> xzpos = {{},{},{},{},{},{},{},{}};
+
+
+      for(int i=bounds[j]+1;i<=bounds[j+1];i++){
+   	t1->GetEntry(i);
+
+   	//Filling vectors for xz-plot
+      if(fer ==0 && module==1){
+         xpos[0].push_back((-row+320)*ssdPitch-xresiduals[0]);
+         xzpos[0].push_back(station0_zpos);
+      }else if(fer ==0 && module==3){
+         xpos[1].push_back((-row+320)*ssdPitch-xresiduals[1]);
+         xzpos[1].push_back(station0_zpos+station_thickness);
+      }else if(fer ==1 && module==1){
+         xpos[2].push_back((-row+320)*ssdPitch-xresiduals[2]);
+         xzpos[2].push_back(station1_zpos);
+      }else if(fer ==1 && module==3){
+         xpos[3].push_back((-row+320)*ssdPitch-xresiduals[3]);
+         xzpos[3].push_back(station1_zpos+station_thickness);
+      }else if(fer ==2 && module==0){
+         xpos[4].push_back((row)*ssdPitch-xresiduals[4]);
+         xzpos[4].push_back(station2_zpos);
+      }else if(fer ==2 && module==1){
+         xpos[5].push_back((-row)*ssdPitch-xresiduals[5]);
+         xzpos[5].push_back(station2_zpos);
+      }else if(fer ==3 && module==0){
+         xpos[6].push_back((-row+640)*ssdPitch-xresiduals[6]);
+         xzpos[6].push_back(station2_zpos+station2_thickness);
+      }else if(fer ==3 && module==1){
+         xpos[7].push_back((row-640)*ssdPitch-xresiduals[7]);
+         xzpos[7].push_back(station2_zpos+station2_thickness);
+      
+   	//Filling vectors for yz-plot
+      }else if(fer ==0 && module==0){
+         ypos[0].push_back((row-320)*ssdPitch-yresiduals[0]);
+         yzpos[0].push_back(station0_zpos);
+      }else if(fer ==0 && module==2){
+         ypos[1].push_back((row-320)*ssdPitch-yresiduals[1]);
+         yzpos[1].push_back(station0_zpos+station_thickness);      
+      }else if(fer ==1 && module==0){
+         ypos[2].push_back((row-320)*ssdPitch-yresiduals[2]);
+         yzpos[2].push_back(station1_zpos);      
+      }else if(fer ==1 && module==2){
+         ypos[3].push_back((row-320)*ssdPitch-yresiduals[3]);
+         yzpos[3].push_back(station1_zpos+station_thickness);      
+      }else if(fer ==2 && module==2){
+         ypos[4].push_back((row-640)*ssdPitch-yresiduals[4]);
+         yzpos[4].push_back(station2_zpos);      
+      }else if(fer ==2 && module==3){
+         ypos[5].push_back(-(row-640)*ssdPitch-yresiduals[5]);
+         yzpos[5].push_back(station2_zpos);      
+      }else if(fer ==3 && module==2){
+         ypos[6].push_back((row-640)*ssdPitch-yresiduals[6]);
+         yzpos[6].push_back(station2_zpos+station2_thickness);      
+      }else if(fer ==3 && module==3){
+         ypos[7].push_back(-(row-640)*ssdPitch-yresiduals[7]);
+         yzpos[7].push_back(station2_zpos+station2_thickness);
+      }  
+	
+   }
+  
+   //Only keep events with single track
+   if(  //ypart
+        (yzpos[0].size()==1 || (yzpos[0].size()==2 && abs(ypos[0][0]-ypos[0][1])<constr ))
+    &&  (yzpos[1].size()==1 || (yzpos[1].size()==2 && abs(ypos[1][0]-ypos[1][1])<constr ))
+    &&  (yzpos[2].size()==1 || (yzpos[2].size()==2 && abs(ypos[2][0]-ypos[2][1])<constr ))
+    &&  (yzpos[3].size()==1 || (yzpos[3].size()==2 && abs(ypos[3][0]-ypos[3][1])<constr ))
+    &&(((yzpos[4].size()==1 || (yzpos[4].size()==2 && abs(ypos[4][0]-ypos[4][1])<constr )) && yzpos[5].size()==0)
+    ||(( yzpos[5].size()==1 || (yzpos[5].size()==2 && abs(ypos[5][0]-ypos[5][1])<constr )) && yzpos[4].size()==0))
+    &&(((yzpos[6].size()==1 || (yzpos[6].size()==2 && abs(ypos[6][0]-ypos[6][1])<constr )) && yzpos[7].size()==0)
+    ||(( yzpos[7].size()==1 || (yzpos[7].size()==2 && abs(ypos[7][0]-ypos[7][1])<constr )) && yzpos[6].size()==0))
+     
+    //xpart
+    &&  (xzpos[0].size()==1 || (xzpos[0].size()==2 && abs(xpos[0][0]-xpos[0][1])<constr ))
+    &&  (xzpos[1].size()==1 || (xzpos[1].size()==2 && abs(xpos[1][0]-xpos[1][1])<constr ))
+    &&  (xzpos[2].size()==1 || (xzpos[2].size()==2 && abs(xpos[2][0]-xpos[2][1])<constr ))
+    &&  (xzpos[3].size()==1 || (xzpos[3].size()==2 && abs(xpos[3][0]-xpos[3][1])<constr ))
+    &&(((xzpos[4].size()==1 || (xzpos[4].size()==2 && abs(xpos[4][0]-xpos[4][1])<constr )) && xzpos[5].size()==0)
+    ||(( xzpos[5].size()==1 || (xzpos[5].size()==2 && abs(xpos[5][0]-xpos[5][1])<constr )) && xzpos[4].size()==0))
+    &&(((xzpos[6].size()==1 || (xzpos[6].size()==2 && abs(xpos[6][0]-xpos[6][1])<constr )) && xzpos[7].size()==0)
+    ||(( xzpos[7].size()==0 ||   xzpos[7].size()==1|| (xzpos[7].size()==2 && abs(xpos[7][0]-xpos[7][1])<constr )) && xzpos[6].size()==0))
+
+    
+    ){
+
+
+
+
+      /*
+      int num = 0;
+      for(int i=0;i<4;i++){
+         if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
+            beam_array[i]->Fill(getAverage(xpos[i]),getAverage(ypos[i]));
+            num++;
+         }        
+      }
+      
+
+      if(xpos[4].size()!=0 and ypos[4].size()!=0)beam_array[4]->Fill(getAverage(xpos[4]),getAverage(ypos[4]));
+      else if(xpos[5].size()!=0 and ypos[5].size()!=0)beam_array[4]->Fill(getAverage(xpos[5]),getAverage(ypos[5]));
+      else if(xpos[5].size()!=0 and ypos[4].size()!=0)beam_array[4]->Fill(getAverage(xpos[5]),getAverage(ypos[4]));
+      else if(xpos[4].size()!=0 and ypos[5].size()!=0)beam_array[4]->Fill(getAverage(xpos[4]),getAverage(ypos[5]));
+
+      if(xpos[6].size()!=0 and ypos[6].size()!=0)beam_array[5]->Fill(getAverage(xpos[6]),getAverage(ypos[6]));
+      else if(xpos[7].size()!=0 and ypos[7].size()!=0)beam_array[5]->Fill(getAverage(xpos[7]),getAverage(ypos[7]));
+      else if(xpos[7].size()!=0 and ypos[6].size()!=0)beam_array[5]->Fill(getAverage(xpos[7]),getAverage(ypos[6]));
+      else if(xpos[6].size()!=0 and ypos[7].size()!=0)beam_array[5]->Fill(getAverage(xpos[6]),getAverage(ypos[7]));
+      */
+
+
+
+      // Only take events with reasonably small chi squared
+      int xcount = 0;
+      int ycount = 0; 
+      for(int i=0;i<yzpos.size();i++)  if( ypos[i].size() != 0)  ycount ++; 
+      for(int i=0;i<xzpos.size();i++)  if( xpos[i].size() != 0)  xcount ++;  
+      Double_t xlist[xcount], ylist[ycount],xzlist[xcount], yzlist[ycount];
+
+      int numy = 0;
+      for(int i=0;i<ypos.size();i++){
+         if( yzpos[i].size()!=0 ){
+            ylist[numy] = getAverage(ypos[i]);
+            yzlist[numy] = getAverage(yzpos[i]);
+            numy++;
+         }      
+      }
+      int numx = 0;
+      for(int i=0;i<xpos.size();i++){
+         if( xzpos[i].size()!=0 ){
+            xlist[numx] = getAverage(xpos[i]);
+            xzlist[numx] = getAverage(xzpos[i]);
+            numx++;
+         }      
+      }
+ 
+      
+      TGraph* yevent = new TGraph(ycount,yzlist,ylist);
+      TGraph* xevent = new TGraph(xcount,xzlist,xlist);
+
+     
+     
+     //drop events when predicted hit is in dead region but we still have a hit
+
+      TF1 *first_x_points = new TF1("first_x_points","[1]*x+[0]",-200,400);//fit a function to the first five points
+      xevent->Fit(first_x_points,"R"); //Use range option to only fit first five points
+      double x_predicted = first_x_points->Eval(station2_zpos+station2_thickness,0,0); //get the expexted value of x at the final station
+      //cout<<endl<<x_predicted;
+      
+      
+      if( ((x_predicted > (-256*ssdPitch-xresiduals[7])) 
+      && (x_predicted < (-128*ssdPitch-xresiduals[7]))) 
+      && (xpos[6].size() + xpos[7].size() != 0) ){
+         cout<<"in dead region"<< xcount<<endl;
+
+         continue;
+         }
+      
+     //drop events when predicted hit is outside dead region and we don't have a hit
+     if( ((x_predicted < (-256*ssdPitch-xresiduals[7])) 
+      || (x_predicted > (-128*ssdPitch-xresiduals[7])))
+      && (xpos[6].size() + xpos[7].size() == 0) ){
+           cout<<"not in dead region "<< xcount<<endl;
+           continue;
+           }
+      cout<<endl<<xcount<<", "<<ycount<<endl;
+      
+
+      TF1 *yfit = new TF1("yfit","[1]*x+[0]",-200,1200);
+      TF1 *xfit = new TF1("xfit","[3]*x+[2]",-200,1200);
+
+      TFitResultPtr ry = yevent->Fit(yfit,"S");
+      TFitResultPtr rx = xevent->Fit(xfit,"S");
+
+      double chi2y = ry->Chi2();
+      double chi2x = rx->Chi2();
+      
+
+	   //if(chi2y<200 && chi2x<200)*/
+
+      result.push_back(j);
+
+	   }
+   }
+
+
+  /*
+   TCanvas *c1 = new TCanvas("c1","c1",1400,700);
+   c1->Divide(3,2);
+   for(int i=0;i<6;i++){
+       
+        beam_array[i]->GetYaxis()->SetTitle("y-position mm");
+        beam_array[i]->GetXaxis()->SetTitle("x-position mm");
+        c1->cd(i+1);
+        beam_array[i]->Draw("COLZ");
+   }
+   */
+
+   return result; 
+}
+
+vector<int> accepted_tracks = find_accepted_tracks();
+
+
+
+//.........................................................................
+
+vector<double> theta_residuals(){
+   
+   //Input: vector with SSD offsets
+   //Returns a vector with new offsets
+
+   vector<double> Variables = {-3.61883e-05, 0.00499131, -0.00151726, 0.00356343, -0.0052976, 0.00306784, -0.00791931, 0.00485789, -0.0200938, 0.00985453, -0.0198466, 0.00714154, -0.030876, -0.0059863, -0.0284717, -0.00564236, -2.48541, -4.17873};
+   double xtot_shift = Variables[16];
+   double ytot_shift = Variables[17];
+
+   double chix_with =0;
+   double chiy_with =0;
+   double chix_without =0;
+   double chiy_without =0;
+   
+   //Histstograms filled with residuals with and without rotations
+   TH1F** residualx_array = new TH1F*[6]; 
+   TH1F** residualy_array = new TH1F*[6];
+   TH1F** baselinex_array = new TH1F*[6];
+   TH1F** baseliney_array = new TH1F*[6];
+   double size = 10;
+   int bin = 100;
+   baselinex_array[0] = new TH1F("b0","First Station Baseline x",bin,-size,size);
+   baselinex_array[1] = new TH1F("b1","Second Station Baseline x",bin,-size,size);
+   baselinex_array[2] = new TH1F("b2","Third Station Baseline x",bin,-size,size);
+   baselinex_array[3] = new TH1F("b3","Fourth Station Baseline x",bin,-size,size);
+   baselinex_array[4] = new TH1F("b4","Fith Station Baseline x",bin,-size,size);
+   baselinex_array[5] = new TH1F("b5","Fith Station Baseline x",bin,-size,size);
+
+   baseliney_array[0] = new TH1F("b6","First Station Baseline y",bin,-size,size);
+   baseliney_array[1] = new TH1F("b7","Second Station Baseline y",bin,-size,size);
+   baseliney_array[2] = new TH1F("b8","Third Station Baseline y",bin,-size,size);
+   baseliney_array[3] = new TH1F("b9","Fourth Station Baseline y",bin,-size,size);
+   baseliney_array[4] = new TH1F("b10","Fith Station Baseline y",bin,-size,size);
+   baseliney_array[5] = new TH1F("b11","Fith Station Baseline y",bin,-size,size);
+
+   residualx_array[0] = new TH1F("r0","First Station x",bin,-size,size);
+   residualx_array[1] = new TH1F("r1","Second Station x",bin,-size,size);
+   residualx_array[2] = new TH1F("r2","Third Station x",bin,-size,size);
+   residualx_array[3] = new TH1F("r3","Fourth Station x",bin,-size,size);
+   residualx_array[4] = new TH1F("r4","Fith Station x",bin,-size,size);
+   residualx_array[5] = new TH1F("r5","Fith Station x",bin,-size,size);
+
+   residualy_array[0] = new TH1F("r6","First Station y",bin,-size,size);
+   residualy_array[1] = new TH1F("r7","Second Station y",bin,-size,size);
+   residualy_array[2] = new TH1F("r8","Third Station y",bin,-size,size);
+   residualy_array[3] = new TH1F("r9","Fourth Station y",bin,-size,size);
+   residualy_array[4] = new TH1F("r10","Fith Station y",bin,-size,size);
+   residualy_array[5] = new TH1F("r11","Fith Station y",bin,-size,size);
+
 
    //Read in data from SSD.root tree 
    TFile *f = new TFile(infile);
@@ -68,91 +360,286 @@ vector<double> initial_xalign(vector<double> residuals){
    t1->SetBranchAddress("fer",&fer);
    t1->SetBranchAddress("module",&module);
    t1->SetBranchAddress("row",&row);
-   auto h1 = new TH2F("h1","xz-Hits",150,-200,1200,100,-35,35);//histogram with parameters
-   auto event = new TH2I("event","xz-Hits",150,-200,1200,40,-45,45);//histogram with individual event
+  
+   //loops over multiple events and fills vector
+   for(int j=0; j<accepted_tracks.size(); j++){
+
+      vector<vector<double>> ypos = {{},{},{},{},{},{}};
+      vector<vector<double>> yzpos = {{},{},{},{},{},{}};
+      vector<vector<double>> xpos = {{},{},{},{},{},{}};
+      vector<vector<double>> xzpos = {{},{},{},{},{},{}};
+
+
+      for(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1];i++){
+			t1->GetEntry(i);
+
+         //Filling vectors for xz-plot
+         if(fer ==0 && module==1){
+            xpos[0].push_back((-row+320)*ssdPitch-xresiduals[0]-xtot_shift);
+            xzpos[0].push_back(station0_zpos);
+         }else if(fer ==0 && module==3){
+            xpos[1].push_back((-row+320)*ssdPitch-xresiduals[1]-xtot_shift);
+            xzpos[1].push_back(station0_zpos+station_thickness);
+         }else if(fer ==1 && module==1){
+            xpos[2].push_back((-row+320)*ssdPitch-xresiduals[2]-xtot_shift);
+            xzpos[2].push_back(station1_zpos);
+         }else if(fer ==1 && module==3){
+            xpos[3].push_back((-row+320)*ssdPitch-xresiduals[3]-xtot_shift);
+            xzpos[3].push_back(station1_zpos+station_thickness);
+         }else if(fer ==2 && module==0){
+            xpos[4].push_back((row)*ssdPitch-xresiduals[4]-xtot_shift);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==2 && module==1){
+            xpos[4].push_back((-row)*ssdPitch-xresiduals[5]-xtot_shift);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==3 && module==0){
+            xpos[5].push_back((-row+640)*ssdPitch-xresiduals[6]-xtot_shift);
+            xzpos[5].push_back(station2_zpos+station2_thickness);
+         }else if(fer ==3 && module==1){
+            xpos[5].push_back((row-640)*ssdPitch-xresiduals[7]-xtot_shift);
+            xzpos[5].push_back(station2_zpos+station2_thickness);
+
+         //Filling vectors for yz-plot
+         }else if(fer ==0 && module==0){
+            ypos[0].push_back((row-320)*ssdPitch-yresiduals[0]-ytot_shift);
+            yzpos[0].push_back(station0_zpos);
+         }else if(fer ==0 && module==2){
+            ypos[1].push_back((row-320)*ssdPitch-yresiduals[1]-ytot_shift);
+            yzpos[1].push_back(station0_zpos+station_thickness);     
+         }else if(fer ==1 && module==0){
+            ypos[2].push_back((row-320)*ssdPitch-yresiduals[2]-ytot_shift);
+            yzpos[2].push_back(station1_zpos);     
+         }else if(fer ==1 && module==2){
+            ypos[3].push_back((row-320)*ssdPitch-yresiduals[3]-ytot_shift);
+            yzpos[3].push_back(station1_zpos+station_thickness);     
+         }else if(fer ==2 && module==2){
+            ypos[4].push_back((row-640)*ssdPitch-yresiduals[4]-ytot_shift);
+            yzpos[4].push_back(station2_zpos);     
+         }else if(fer ==2 && module==3){
+            ypos[4].push_back(-(row-640)*ssdPitch-yresiduals[5]-ytot_shift);
+            yzpos[4].push_back(station2_zpos);     
+         }else if(fer ==3 && module==2){
+            ypos[5].push_back((row-640)*ssdPitch-yresiduals[6]-ytot_shift);
+            yzpos[5].push_back(station2_zpos+station2_thickness);     
+         }else if(fer ==3 && module==3){
+            ypos[5].push_back(-(row-640)*ssdPitch-yresiduals[7]-ytot_shift);
+            yzpos[5].push_back(station2_zpos+station2_thickness);
+            
+         }
+
+
+      }
+     
+  
    
+   // get x,y,z positions
+   int count = 0; 
+   for(int i=0;i<xpos.size();i++)  if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0)  count ++;
+   //cout<<endl<<count<<endl;
+   Double_t xwithout_rot[count], ywithout_rot[count], zfinal[count],xfinal[count],yfinal[count];
+   int num = 0;
    
 
-//loops over single event and fills vector
-for(int j=0; j<bounds.size(); j++){
+   //Fill lists to be used for plotting
+   for(int i=0;i<xpos.size();i++){
+      if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
+         if(yzpos[i][0]!=xzpos[i][0])continue;
+         double x = getAverage(xpos[i]);
+         double y = getAverage(ypos[i]);
+         xwithout_rot[num] = x;
+         ywithout_rot[num] = y;
+         xfinal[num] = x;
+         yfinal[num] = y;
+         zfinal[num] = getAverage(yzpos[i]);
+         num++;
 
-   vector<vector<double>> xpos = {{},{},{},{},{}};
-   vector<vector<double>> zpos = {{},{},{},{},{}};
-   
-   
-   for(int i=bounds[j];i<bounds[j+1];i++){
-	t1->GetEntry(i);
-	//Filling vectors for xz-plot
-	if(fer ==0 && module==1){
-		xpos[0].push_back((row-320)*ssdPitch-residuals[0]);
-		zpos[0].push_back(station0_zpos);		
-	}else if(fer ==0 && module==3){
-		xpos[1].push_back((row-320)*ssdPitch-residuals[1]);
-		zpos[1].push_back(station0_zpos+station_thickness);		
-	}else if(fer ==1 && module==1){
-		xpos[2].push_back((row-320)*ssdPitch-residuals[2]);
-		zpos[2].push_back(station1_zpos);		
-	}else if(fer ==1 && module==3){
-		xpos[3].push_back((row-320)*ssdPitch-residuals[3]);
-		zpos[3].push_back(station1_zpos+station_thickness);		
-	}else if(fer ==2 && module==0){
-		xpos[4].push_back(-(row)*ssdPitch-residuals[4]);
-		zpos[4].push_back(station2_zpos);
-	}else if(fer ==2 && module==1){
-		xpos[4].push_back((row)*ssdPitch-residuals[5]);
-		zpos[4].push_back(station2_zpos);		
-	}	
-	
+      }        
    }
-  
-   //Only keep events with single track
-   if( (zpos[0].size()==1 || (zpos[0].size()==2 && abs(xpos[0][0]-xpos[0][1])<constr ))
-    && (zpos[1].size()==1 || (zpos[1].size()==2 && abs(xpos[1][0]-xpos[1][1])<constr ))
-    && (zpos[2].size()==1 || (zpos[2].size()==2 && abs(xpos[2][0]-xpos[2][1])<constr ))
-    && (zpos[3].size()==1 || (zpos[3].size()==2 && abs(xpos[3][0]-xpos[3][1])<constr ))
-    && (zpos[4].size()==1 || (zpos[4].size()==2 && abs(xpos[4][0]-xpos[4][1])<constr ))){
-	accepted_tracks.push_back(j);
+   
 
+   //Rotation of the first 8 SSDs
+   //Rotating the first 4 stations
+   for(int i=0;i<4;i++){
+      double xc = 0 - xresiduals[i]-xtot_shift;
+      double yc = 0 - yresiduals[i]-ytot_shift;
+      double x_angle = Variables[2*i];
+      double y_angle = Variables[2*i+1];
+      xfinal[i] = (xc + (xwithout_rot[i]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+      yfinal[i] = (yc + (ywithout_rot[i]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+   }  
+
+
+   //Rotate SSDs in the last 2 stations
+   //Only rotate last station if there are a total of 6 hits 
+   int last_station = 0;
+   if(count==6)last_station++;
+   for(int i=0;i<1+last_station;i++){
+      if(xpos[i+4][0] > xcenters[i]-xtot_shift && ypos[i+4][0] > ycenters[i]-ytot_shift){
+         //first quandrant
+         double xc = 19.2 - xresiduals[5+2*i]-xtot_shift;
+         double yc = 19.2 - yresiduals[5+2*i]-ytot_shift;
+         double x_angle = Variables[8+4*i];
+         double y_angle = Variables[9+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+         
+      }else if(xpos[i+4][0] < xcenters[i]-xtot_shift && ypos[i+4][0] > ycenters[i]-ytot_shift){
+         //second quandrant
+         double xc = -19.2 - xresiduals[4+2*i]-xtot_shift;
+         double yc = 19.2 - yresiduals[5+2*i]-ytot_shift;
+         double x_angle = Variables[10+4*i];
+         double y_angle = Variables[9+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+      }else if(xpos[i+4][0] < xcenters[i]-xtot_shift && ypos[i+4][0] < ycenters[i]-ytot_shift){
+         //third quandrant
+         double xc = -19.2 - xresiduals[4+2*i]-xtot_shift;
+         double yc = -19.2 - yresiduals[4+2*i]-ytot_shift;
+         double x_angle = Variables[10+4*i];
+         double y_angle = Variables[11+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+          
+      }else if(xpos[i+4][0] > xcenters[i]-xtot_shift && ypos[i+4][0] < ycenters[i]-ytot_shift){
+         //fourth quandrant
+         double xc =  19.2 - xresiduals[5+2*i]-xtot_shift;
+         double yc = -19.2 - yresiduals[4+2*i]-ytot_shift;
+         double x_angle = Variables[8+4*i];
+         double y_angle = Variables[11+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+      }
+   }
+
+
+   TGraph* x_event = new TGraph(count,zfinal,xfinal);
+	TGraph* y_event = new TGraph(count,zfinal,yfinal);
+   TGraph* xwithout_rot_event = new TGraph(count,zfinal,xwithout_rot);
+   TGraph* ywithout_rot_event = new TGraph(count,zfinal,ywithout_rot);
 	
-	for(int i = 0; i<zpos.size();i++){
-		if(xpos[i].size() !=0 && zpos[i].size() !=0){
-			new_residuals[i] += xpos[i][0];
-			h1->Fill(zpos[i][0],xpos[i][0]);
-			}
-		}
 
-	event->Reset("ICESM");		
-	}
-  
-  }
-   
-   
-   h1->SetBarWidth(10);
-   h1->SetFillStyle(0);
-   h1->SetFillColor(kGray);
-   h1->SetLineColor(kBlue);
-   h1->GetYaxis()->SetTitle("x-position mm");
-   h1->GetXaxis()->SetTitle("z-position mm");
-   h1->SetStats(0);
-   h1->Draw("violiny(112000000)");
-   
-   for(int i=0;i<new_residuals.size();i++){
-	new_residuals[i]/=accepted_tracks.size();
-	}
-   new_residuals.push_back(new_residuals[4]);
+   TF1 *x_fit = new TF1("x_fit","[1]*x+[0]",-200,1200);
+   TF1 *y_fit = new TF1("y_fit","[3]*x+[2]",-200,1200);
 
-  return new_residuals; 
+   TF1 *xwithout_rot_fit = new TF1("xwithout_rot_fit","[5]*x+[4]",-200,1200);
+   TF1 *ywithout_rot_fit = new TF1("ywithout_rot_fit","[7]*x+[6]",-200,1200);
+
+   x_event->Fit(x_fit,"Q");
+   y_event->Fit(y_fit,"Q"); //fit single event
+
+   xwithout_rot_event->Fit(xwithout_rot_fit,"Q"); 
+   ywithout_rot_event->Fit(ywithout_rot_fit,"Q"); 
+
+
+   int counting=0;
+   for(int i = 0; i<xzpos.size();i++){
+        if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
+		     double x_exp = x_fit->Eval(zfinal[counting],0,0);
+           double y_exp = y_fit->Eval(zfinal[counting],0,0);
+
+           double xwithout_rot_exp = xwithout_rot_fit->Eval(zfinal[counting],0,0);
+		     double ywithout_rot_exp = ywithout_rot_fit->Eval(zfinal[counting],0,0);
+
+           double x_obs = xfinal[counting];
+           double y_obs = yfinal[counting];
+
+		     double xwithout_rot_obs = xwithout_rot[counting];
+           double ywithout_rot_obs = ywithout_rot[counting];
+
+           counting ++;
+
+           residualx_array[i]->Fill((x_exp-x_obs)*sqrt(12)/0.06);
+	        residualy_array[i]->Fill((y_exp-y_obs)*sqrt(12)/0.06);
+
+           baselinex_array[i]->Fill((xwithout_rot_exp-xwithout_rot_obs)*sqrt(12)/0.06);
+	        baseliney_array[i]->Fill((ywithout_rot_exp-ywithout_rot_obs)*sqrt(12)/0.06);
+
+           chix_with += pow((x_exp-x_obs)*sqrt(12)/0.06,2);
+           chiy_with += pow((y_exp-y_obs)*sqrt(12)/0.06,2);
+           chix_without += pow((xwithout_rot_exp-xwithout_rot_obs)*sqrt(12)/0.06,2);
+           chiy_without += pow((ywithout_rot_exp-ywithout_rot_obs)*sqrt(12)/0.06,2);
+
+	        }
+
+       }
+
+   }
+   
+   //All plotting and statistics for x
+   TCanvas *ce4 = new TCanvas("ce4","ce4",1400,700);
+   ce4->Divide(3,4);
+   
+   cout<<endl<<"x with rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<residualx_array[i]->GetMean()<<"   "<<residualx_array[i]->GetStdDev()<<endl;
+      ce4->cd(i+1);
+      residualx_array[i]->GetYaxis()->SetTitle("counts");
+      residualx_array[i]->GetXaxis()->SetTitle("residual");
+   	residualx_array[i]->Draw();
+	}
+   cout<<endl<<"x without rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<baselinex_array[i]->GetMean()<<"   "<<baselinex_array[i]->GetStdDev()<<endl;
+      ce4->cd(i+7);
+      baselinex_array[i]->GetYaxis()->SetTitle("counts");
+      baselinex_array[i]->GetXaxis()->SetTitle("residual");
+      baselinex_array[i]->Draw();
+   }
+
+
+   //All plotting and statistics for y
+   TCanvas *c1 = new TCanvas("c1","c1",1400,700);
+   c1->Divide(3,4);
+   cout<<endl<<"y with rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<residualy_array[i]->GetMean()<<"   "<<residualy_array[i]->GetStdDev()<<endl;
+      c1->cd(i+1);
+      residualy_array[i]->GetYaxis()->SetTitle("counts");
+      residualy_array[i]->GetXaxis()->SetTitle("residual");
+      residualy_array[i]->Draw();
+   }
+   cout<<endl<<"y without rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<baseliney_array[i]->GetMean()<<"   "<<baseliney_array[i]->GetStdDev()<<endl;
+      c1->cd(i+7);
+      baseliney_array[i]->GetYaxis()->SetTitle("counts");
+      baseliney_array[i]->GetXaxis()->SetTitle("residual");
+      baseliney_array[i]->Draw();
+   }
+
+  cout<<endl;
+  cout<<" x without rotations: "<<chix_without<<endl;
+  cout<<" x with rotations: "<<chix_with<<endl;
+  cout<<" y without rotations: "<<chiy_without<<endl;
+  cout<<" y with rotations: "<<chiy_with<<endl;
+
+
+  return {0,0,0,0};//new_residuals; 
 }
-
 
 
 //.........................................................................
 
-vector<double> xalign(vector<double> residuals){
+vector<double> beam_profile(){
    
    //Input: vector with SSD offsets
    //Returns a vector with new offsets
-  
+
+   //beam profiles
+   TH2F** beam_array = new TH2F*[6];
+   double sizes = 30;
+   int bin = 100;
+   beam_array[0] = new TH2F("h7","First Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[1] = new TH2F("h8","Second Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[2] = new TH2F("h9","Third Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[3] = new TH2F("h10","Fourth Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[4] = new TH2F("h11","Fith Station",bin,-sizes,sizes,bin,-sizes,sizes);
+   beam_array[5] = new TH2F("h12","Fith Station",bin,-sizes,sizes,bin,-sizes,sizes);
+
+
    //Read in data from SSD.root tree 
    TFile *f = new TFile(infile);
    TTree *t1 = (TTree*)f->Get("SSDtree");
@@ -163,110 +650,174 @@ vector<double> xalign(vector<double> residuals){
    vector<double> new_residuals;
    //Histstograms filled with residuals
    TH1F** residual_array = new TH1F*[6]; 
-   for (int i=0;i<6;i++) { 
-	residual_array[i] = new TH1F(Form("h%d",i),Form("Residuals %d",i),100,-200,200);
-	}
+   double size = 0.3;
+   int bins = 100;
+   residual_array[0] = new TH1F("h0","First Station",bins,-size,size);
+   residual_array[1] = new TH1F("h1","Second Station",bins,-size,size);
+   residual_array[2] = new TH1F("h2","Third Station",bins,-size,size);
+   residual_array[3] = new TH1F("h3","Fourth Station",bins,-size,size);
+   residual_array[4] = new TH1F("h4","Fith Station",bins,-size,size);
+   residual_array[5] = new TH1F("h5","Fith Station",bins,-size,size);
+   //residual_array[6] = new TH1F("h6","Sixth Station Lower X-SSD",bins,-size,size);
+   //residual_array[7] = new TH1F("h7","Sixth Station Upper X-SSD",bins,-size,size);
 
-   auto event = new TH2I("event","xz-Hits",150,-200,1200,40,-45,45);//histogram with single event
-   
-   
+   //loops over single event and fills vector
+   for(int j=0; j<accepted_tracks.size(); j++){
 
-//loops over single event and fills vector
-for(int j=0; j<bounds.size(); j++){
+      vector<vector<double>> ypos = {{},{},{},{},{},{}};
+      vector<vector<double>> yzpos = {{},{},{},{},{},{}};
+      vector<vector<double>> xpos = {{},{},{},{},{},{}};
+      vector<vector<double>> xzpos = {{},{},{},{},{},{}};
 
-   vector<vector<double>> xpos = {{},{},{},{},{},{}};
-   vector<vector<double>> zpos = {{},{},{},{},{},{}};
-   
-   
-   for(int i=bounds[j];i<bounds[j+1];i++){
-	t1->GetEntry(i);
-	//Filling vectors for xz-plot
-	if(fer ==0 && module==1){
-		xpos[0].push_back((row-320)*ssdPitch-residuals[0]);
-		zpos[0].push_back(station0_zpos);		
-	}else if(fer ==0 && module==3){
-		xpos[1].push_back((row-320)*ssdPitch-residuals[1]);
-		zpos[1].push_back(station0_zpos+station_thickness);		
-	}else if(fer ==1 && module==1){
-		xpos[2].push_back((row-320)*ssdPitch-residuals[2]);
-		zpos[2].push_back(station1_zpos);		
-	}else if(fer ==1 && module==3){
-		xpos[3].push_back((row-320)*ssdPitch-residuals[3]);
-		zpos[3].push_back(station1_zpos+station_thickness);		
-	}else if(fer ==2 && module==0){
-		xpos[4].push_back(-(row)*ssdPitch-residuals[4]);
-		zpos[4].push_back(station2_zpos);
-	}else if(fer ==2 && module==1){
-		xpos[5].push_back((row)*ssdPitch-residuals[5]);
-		zpos[5].push_back(station2_zpos);		
-	
-	}	
-	
+
+      for(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1];i++){
+      	t1->GetEntry(i);
+
+      	//Filling vectors for xz-plot
+         if(fer ==0 && module==1){
+            xpos[0].push_back((-row+320)*ssdPitch-xresiduals[0]);
+            xzpos[0].push_back(station0_zpos);
+         }else if(fer ==0 && module==3){
+            xpos[1].push_back((-row+320)*ssdPitch-xresiduals[1]);
+            xzpos[1].push_back(station0_zpos+station_thickness);
+         }else if(fer ==1 && module==1){
+            xpos[2].push_back((-row+320)*ssdPitch-xresiduals[2]);
+            xzpos[2].push_back(station1_zpos);
+         }else if(fer ==1 && module==3){
+            xpos[3].push_back((-row+320)*ssdPitch-xresiduals[3]);
+            xzpos[3].push_back(station1_zpos+station_thickness);
+         }else if(fer ==2 && module==0){
+            xpos[4].push_back((row)*ssdPitch-xresiduals[4]);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==2 && module==1){
+            xpos[4].push_back((-row)*ssdPitch-xresiduals[5]);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==3 && module==0){
+            xpos[5].push_back((-row+640)*ssdPitch-xresiduals[6]);
+            xzpos[5].push_back(station2_zpos+station2_thickness);
+         }else if(fer ==3 && module==1){
+            xpos[5].push_back((row-640)*ssdPitch-xresiduals[7]);
+            xzpos[5].push_back(station2_zpos+station2_thickness);  
+
+      	//Filling vectors for yz-plot
+      	}else if(fer ==0 && module==0){
+      		ypos[0].push_back((row-320)*ssdPitch-yresiduals[0]);
+      		yzpos[0].push_back(station0_zpos);
+      	}else if(fer ==0 && module==2){
+      		ypos[1].push_back((row-320)*ssdPitch-yresiduals[1]);
+      		yzpos[1].push_back(station0_zpos+station_thickness);		
+      	}else if(fer ==1 && module==0){
+      		ypos[2].push_back((row-320)*ssdPitch-yresiduals[2]);
+      		yzpos[2].push_back(station1_zpos);		
+      	}else if(fer ==1 && module==2){
+      		ypos[3].push_back((row-320)*ssdPitch-yresiduals[3]);
+      		yzpos[3].push_back(station1_zpos+station_thickness);		
+      	}else if(fer ==2 && module==2){
+      		ypos[4].push_back((row-640)*ssdPitch-yresiduals[4]);
+      		yzpos[4].push_back(station2_zpos);		
+      	}else if(fer ==2 && module==3){
+      		ypos[4].push_back(-(row-640)*ssdPitch-yresiduals[5]);
+      		yzpos[4].push_back(station2_zpos);		
+      	}else if(fer ==3 && module==2){
+      		ypos[5].push_back((row-640)*ssdPitch-yresiduals[6]);
+      		yzpos[5].push_back(station2_zpos+station2_thickness);		
+      	}else if(fer ==3 && module==3){
+      		ypos[5].push_back(-(row-640)*ssdPitch-yresiduals[7]);
+      		yzpos[5].push_back(station2_zpos+station2_thickness);
+      		
+      	}
+      	
 	
    }
   
-   //Only keep events with single track
-   if( (zpos[0].size()==1 || (zpos[0].size()==2 && abs(xpos[0][0]-xpos[0][1])<constr ))
-    && (zpos[1].size()==1 || (zpos[1].size()==2 && abs(xpos[1][0]-xpos[1][1])<constr ))
-    && (zpos[2].size()==1 || (zpos[2].size()==2 && abs(xpos[2][0]-xpos[2][1])<constr ))
-    && (zpos[3].size()==1 || (zpos[3].size()==2 && abs(xpos[3][0]-xpos[3][1])<constr ))
-    && (((zpos[4].size()==1|| (zpos[4].size()==2 && abs(xpos[4][0]-xpos[4][1])<constr )) && zpos[5].size()==0)
-    ||  ((zpos[5].size()==1|| (zpos[5].size()==2 && abs(xpos[5][0]-xpos[5][1])<constr )) && zpos[4].size()==0)) ){
-	accepted_tracks.push_back(j);
-
-	for(int i=0;i<zpos.size();i++){
-		for(int j=0; j<zpos[i].size();j++){
-			event->Fill(zpos[i][0],xpos[i][0]); //fill event histogram with data
-			}
-			
-		}
-
-
-
-
-   	TF1 *fit = new TF1("fit","[1]*x+[0]",-200,1200);
-	event->Fit(fit,"Q"); //fit single event
-	double intercept = fit->GetParameter(0); //get parameters
-	double slope = fit->GetParameter(1);
-
-	for(int i = 0; i<zpos.size();i++){
-		if(xpos[i].size() !=0 && zpos[i].size() !=0){
-			double delta_x = (xpos[i][0]-intercept-slope*zpos[i][0]);//calculate difference between fitted and actual data
-			residual_array[i]->Fill(delta_x*sqrt(12)/ssdPitch);
-			}
-		}
-
-	event->Reset("ICESM");
-        	
-	}
   
-  }
-   delete event;
+   // graph of x_event
+   int count = 0;	
+   for(int i=0;i<xpos.size();i++)  if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0)  count ++;
+   //Double_t ylist[count], zlist[count],zlist[count];
+   //cout<<endl<<count<<endl;
+   //if(count!=6)continue;
+   int num = 0;
+   for(int i=0;i<xzpos.size();i++){
+      if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
+   		beam_array[i]->Fill(getAverage(xpos[i]),getAverage(ypos[i]));
+   	   num++;
+   		}			
+      }
+   
+   cout<<endl<<num<<endl;
 
-   //Draw histograms of Residuals
-   TCanvas *ce4 = new TCanvas("ce4","ce4",1800,700);
-   ce4->Divide(3,2);
+   }
+   
+   
+   TCanvas *c1 = new TCanvas("c1","c1",1400,700);
+   c1->Divide(3,2);
    for(int i=0;i<6;i++){
-        new_residuals.push_back(residuals[i]+(residual_array[i]->GetMean())*ssdPitch/sqrt(12)); //Fill vector with offsets	
-
-        residual_array[i]->GetYaxis()->SetTitle("counts");
-        residual_array[i]->GetXaxis()->SetTitle("residual");
-        ce4->cd(i+1);
-   	residual_array[i]->Draw();
+       
+        beam_array[i]->GetYaxis()->SetTitle("y-position mm");
+        beam_array[i]->GetXaxis()->SetTitle("x-position mm");
+        c1->cd(i+1);
+   	  beam_array[i]->Draw("COLZ");
 	}
-   
- 
-  return new_residuals; 
+  return {0,0,0,0};//new_residuals; 
 }
 
 
-//.........................................................................
 
 
-void xhist(vector<double> residuals){
+vector<double> testing(){
+   
+   //Input: vector with SSD offsets
+   //Returns a vector with new offsets
 
-   //Input: vector with ssd offsets
-   ///Plots a histogram of the beam profile
+   vector<double> Variables = {-3.61883e-05, 0.00499131, -0.00151726, 0.00356343, -0.0052976, 0.00306784, -0.00791931, 0.00485789, -0.0200938, 0.00985453, -0.0198466, 0.00714154, -0.030876, -0.0059863, -0.0284717, -0.00564236, -2.48541, -4.17873};
+   double xtot_shift = Variables[16];
+   double ytot_shift = Variables[17];
+
+   double chix_with =0;
+   double chiy_with =0;
+   double chix_without =0;
+   double chiy_without =0;
+   
+   //Histstograms filled with residuals with and without rotations
+   TH1F** residualx_array = new TH1F*[6]; 
+   TH1F** residualy_array = new TH1F*[8];
+   TH1F** baselinex_array = new TH1F*[6];
+   TH1F** baseliney_array = new TH1F*[8];
+   double size = 15;
+   int bin = 100;
+   baselinex_array[0] = new TH1F("b0","First Station Baseline x",bin,-size,size);
+   baselinex_array[1] = new TH1F("b1","Second Station Baseline x",bin,-size,size);
+   baselinex_array[2] = new TH1F("b2","Third Station Baseline x",bin,-size,size);
+   baselinex_array[3] = new TH1F("b3","Fourth Station Baseline x",bin,-size,size);
+   baselinex_array[4] = new TH1F("b4","Fith Station Baseline x",bin,-size,size);
+   baselinex_array[5] = new TH1F("b5","Fith Station Baseline x",bin,-size,size);
+
+   baseliney_array[0] = new TH1F("b6","First Station Baseline y",bin,-size,size);
+   baseliney_array[1] = new TH1F("b7","Second Station Baseline y",bin,-size,size);
+   baseliney_array[2] = new TH1F("b8","Third Station Baseline y",bin,-size,size);
+   baseliney_array[3] = new TH1F("b9","Fourth Station Baseline y",bin,-size,size);
+   baseliney_array[4] = new TH1F("b10","Fith low Station Baseline y",bin,-size,size);
+   baseliney_array[5] = new TH1F("b11","Fith up Station Baseline y",bin,-size,size);
+   baseliney_array[6] = new TH1F("b12","Sixth low Station Baseline y",bin,-size,size);
+   baseliney_array[7] = new TH1F("b13","sixth up Station Baseline y",bin,-size,size);
+
+   residualx_array[0] = new TH1F("r0","First Station x",bin,-size,size);
+   residualx_array[1] = new TH1F("r1","Second Station x",bin,-size,size);
+   residualx_array[2] = new TH1F("r2","Third Station x",bin,-size,size);
+   residualx_array[3] = new TH1F("r3","Fourth Station x",bin,-size,size);
+   residualx_array[4] = new TH1F("r4","Fith Station x",bin,-size,size);
+   residualx_array[5] = new TH1F("r5","Fith Station x",bin,-size,size);
+
+   residualy_array[0] = new TH1F("r6","First Station y",bin,-size,size);
+   residualy_array[1] = new TH1F("r7","Second Station y",bin,-size,size);
+   residualy_array[2] = new TH1F("r8","Third Station y",bin,-size,size);
+   residualy_array[3] = new TH1F("r9","Fourth Station y",bin,-size,size);
+   residualy_array[4] = new TH1F("r10","Fith Station y",bin,-size,size);
+   residualy_array[5] = new TH1F("r11","Fith Station y",bin,-size,size);
+   residualy_array[6] = new TH1F("r12","Sixth low Station Baseline y",bin,-size,size);
+   residualy_array[7] = new TH1F("r13","sixth up Station Baseline y",bin,-size,size);
+
 
    //Read in data from SSD.root tree 
    TFile *f = new TFile(infile);
@@ -275,251 +826,275 @@ void xhist(vector<double> residuals){
    t1->SetBranchAddress("fer",&fer);
    t1->SetBranchAddress("module",&module);
    t1->SetBranchAddress("row",&row);
-   auto h1 = new TH2F("h1",Form("Spill %d: xz-Hits",spill),150,-200,1200,40,-45,45);
-   
+  
+   //loops over multiple events and fills vector
+   for(int j=0; j<accepted_tracks.size(); j++){
 
-//loops over single event and fills vector
-for(int i=0; i<t1->GetEntries(); i++){
-	t1->GetEntry(i);
-      	
-	//Filling vectors for xz-plot
-	if(fer ==0 && module==1){
-		h1->Fill(station0_zpos,(row-320)*ssdPitch-residuals[0]);
-	}else if(fer ==0 && module==3){
-		h1->Fill(station0_zpos+station_thickness,(row-320)*ssdPitch-residuals[1]);
-	}else if(fer ==1 && module==1){
-		h1->Fill(station1_zpos,(row-320)*ssdPitch-residuals[2]);
-	}else if(fer ==1 && module==3){
-		h1->Fill(station1_zpos+station_thickness,(row-320)*ssdPitch-residuals[3]);	
-	}else if(fer ==2 && module==0){
-		h1->Fill(station2_zpos,(row)*ssdPitch-residuals[4]);		
-	}else if(fer ==2 && module==1){
-		h1->Fill(station2_zpos,-(row)*ssdPitch-residuals[5]);		
-	}else if(fer ==3 && module==0){
-		h1->Fill(station2_zpos+station_thickness,(row-640)*ssdPitch-residuals[6]);		
-	}else if(fer ==3 && module==1){
-		h1->Fill(station2_zpos+station_thickness,-(row-640)*ssdPitch-residuals[7]);
-		
-	}	
-	
-   }
+      vector<vector<double>> ypos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> yzpos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> xpos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> xzpos = {{},{},{},{},{},{},{},{}};
+
+
+      for(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1];i++){
+         t1->GetEntry(i);
+
+         //Filling vectors for xz-plot
+         if(fer ==0 && module==1){
+            xpos[0].push_back((-row+320)*ssdPitch-xresiduals[0]-xtot_shift);
+            xzpos[0].push_back(station0_zpos);
+         }else if(fer ==0 && module==3){
+            xpos[1].push_back((-row+320)*ssdPitch-xresiduals[1]-xtot_shift);
+            xzpos[1].push_back(station0_zpos+station_thickness);
+         }else if(fer ==1 && module==1){
+            xpos[2].push_back((-row+320)*ssdPitch-xresiduals[2]-xtot_shift);
+            xzpos[2].push_back(station1_zpos);
+         }else if(fer ==1 && module==3){
+            xpos[3].push_back((-row+320)*ssdPitch-xresiduals[3]-xtot_shift);
+            xzpos[3].push_back(station1_zpos+station_thickness);
+         }else if(fer ==2 && module==0){
+            xpos[4].push_back((row)*ssdPitch-xresiduals[4]-xtot_shift);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==2 && module==1){
+            xpos[4].push_back((-row)*ssdPitch-xresiduals[5]-xtot_shift);
+            xzpos[4].push_back(station2_zpos);
+         }else if(fer ==3 && module==0){
+            xpos[5].push_back((-row+640)*ssdPitch-xresiduals[6]-xtot_shift);
+            xzpos[5].push_back(station2_zpos+station2_thickness);
+         }else if(fer ==3 && module==1){
+            xpos[5].push_back((row-640)*ssdPitch-xresiduals[7]-xtot_shift);
+            xzpos[5].push_back(station2_zpos+station2_thickness);
+
+         //Filling vectors for yz-plot
+         }else if(fer ==0 && module==0){
+            ypos[0].push_back((row-320)*ssdPitch-yresiduals[0]-ytot_shift);
+            yzpos[0].push_back(station0_zpos);
+         }else if(fer ==0 && module==2){
+            ypos[1].push_back((row-320)*ssdPitch-yresiduals[1]-ytot_shift);
+            yzpos[1].push_back(station0_zpos+station_thickness);     
+         }else if(fer ==1 && module==0){
+            ypos[2].push_back((row-320)*ssdPitch-yresiduals[2]-ytot_shift);
+            yzpos[2].push_back(station1_zpos);     
+         }else if(fer ==1 && module==2){
+            ypos[3].push_back((row-320)*ssdPitch-yresiduals[3]-ytot_shift);
+            yzpos[3].push_back(station1_zpos+station_thickness);     
+         }else if(fer ==2 && module==2){
+            ypos[4].push_back((row-640)*ssdPitch-yresiduals[4]-ytot_shift);
+            yzpos[4].push_back(station2_zpos);     
+         }else if(fer ==2 && module==3){
+            ypos[4].push_back(-(row-640)*ssdPitch-yresiduals[5]-ytot_shift);
+            yzpos[4].push_back(station2_zpos);     
+         }else if(fer ==3 && module==2){
+            ypos[5].push_back((row-640)*ssdPitch-yresiduals[6]-ytot_shift);
+            yzpos[5].push_back(station2_zpos+station2_thickness);     
+         }else if(fer ==3 && module==3){
+            ypos[5].push_back(-(row-640)*ssdPitch-yresiduals[7]-ytot_shift);
+            yzpos[5].push_back(station2_zpos+station2_thickness);
+            
+         }
+
+
+      }
+     
   
    
-   //cout<<"hello";
-   h1->SetBarWidth(11);
-   h1->SetFillStyle(0);
-   h1->SetFillColor(kGray);
-   h1->SetLineColor(kBlue);
-   h1->GetYaxis()->SetTitle("x-position mm");
-   h1->GetXaxis()->SetTitle("z-position mm");
-   h1->SetStats(0);
-   h1->Draw("violiny(112000000)");
+   // get x,y,z positions
+   int count = 0; 
+   for(int i=0;i<xpos.size();i++)  if(ypos[i].size()!=0 && xpos.size()!=0)  count ++;
+   cout<<endl<<count<<endl;
+   Double_t xwithout_rot[count], ywithout_rot[count], zfinal[count],xfinal[count],yfinal[count];
+   int num = 0;
+   //if(count!=6)continue;
 
-}
+   //Fill lists to be used for plotting
+   for(int i=0;i<ypos.size();i++){
+      if(ypos[i].size()!=0 ){
+         //if(yzpos[i][0]!=xzpos[i][0])continue;
+         //double x = getAverage(xpos[i]);
+         double y = getAverage(ypos[i]);
+         //xwithout_rot[num] = x;
+         ywithout_rot[num] = y;
+         //xfinal[num] = x;
+         yfinal[num] = y;
+         zfinal[num] = getAverage(yzpos[i]);
+         num++;
+
+      }        
+   }
+   
+   /*
+   //Rotation of the first 8 SSDs
+   //Rotating the first 4 stations
+   for(int i=0;i<4;i++){
+      double xc = 0 - xresiduals[i]-xtot_shift;
+      double yc = 0 - yresiduals[i]-ytot_shift;
+      double x_angle = Variables[2*i];
+      double y_angle = Variables[2*i+1];
+      xfinal[i] = (xc + (xwithout_rot[i]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+      yfinal[i] = (yc + (ywithout_rot[i]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+   }  
 
 
-//.........................................................................
+   //Rotate SSDs in the last 2 stations
+   //Only rotate last station if there are a total of 6 hits 
+   int last_station = 0;
+   if(count==6)last_station++;
+   for(int i=0;i<1+last_station;i++){
+      if(xpos[i+4][0] > xcenters[i]-xtot_shift && ypos[i+4][0] > ycenters[i]-ytot_shift){
+         //first quandrant
+         double xc = 19.2 - xresiduals[5+2*i]-xtot_shift;
+         double yc = 19.2 - yresiduals[5+2*i]-ytot_shift;
+         double x_angle = Variables[8+4*i];
+         double y_angle = Variables[9+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+         
+      }else if(xpos[i+4][0] < xcenters[i]-xtot_shift && ypos[i+4][0] > ycenters[i]-ytot_shift){
+         //second quandrant
+         double xc = -19.2 - xresiduals[4+2*i]-xtot_shift;
+         double yc = 19.2 - yresiduals[5+2*i]-ytot_shift;
+         double x_angle = Variables[10+4*i];
+         double y_angle = Variables[9+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+      }else if(xpos[i+4][0] < xcenters[i]-xtot_shift && ypos[i+4][0] < ycenters[i]-ytot_shift){
+         //third quandrant
+         double xc = -19.2 - xresiduals[4+2*i]-xtot_shift;
+         double yc = -19.2 - yresiduals[4+2*i]-ytot_shift;
+         double x_angle = Variables[10+4*i];
+         double y_angle = Variables[11+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+          
+      }else if(xpos[i+4][0] > xcenters[i]-xtot_shift && ypos[i+4][0] < ycenters[i]-ytot_shift){
+         //fourth quandrant
+         double xc =  19.2 - xresiduals[5+2*i]-xtot_shift;
+         double yc = -19.2 - yresiduals[4+2*i]-ytot_shift;
+         double x_angle = Variables[8+4*i];
+         double y_angle = Variables[11+4*i];
+         xfinal[i+4] = (xc + (xwithout_rot[i+4]-xc)/cos(x_angle) - yc*tan(x_angle) - ((ywithout_rot[i+4]-yc)/cos(y_angle))*tan(x_angle))/(1+tan(x_angle)*tan(y_angle));
+         yfinal[i+4] = (yc + (ywithout_rot[i+4]-yc)/cos(y_angle) + xc*tan(y_angle) + ((xwithout_rot[i+4]-xc)/cos(x_angle))*tan(y_angle))/(1+tan(x_angle)*tan(y_angle));
+     
+      }
+   }
 
-void xplot(vector<double> residuals, int event){
-
-   //Input: vector of offsets and starting event
-   //Plots xz-positions for six events
-
-   vector<vector<double>> xpos = {{},{},{},{},{},{}};
-   vector<vector<double>> zpos = {{},{},{},{},{},{}};//store x,z positions
+    */
+   //TGraph* x_event = new TGraph(count,zfinal,xfinal);
+   TGraph* y_event = new TGraph(count,zfinal,yfinal);
+   //TGraph* xwithout_rot_event = new TGraph(count,zfinal,xwithout_rot);
+   TGraph* ywithout_rot_event = new TGraph(count,zfinal,ywithout_rot);
    
 
-   //Read in data from SSD.root tree 
-   TFile *f = new TFile(infile);
-   TTree *t1 = (TTree*)f->Get("SSDtree");
-   int fer, module, row;
-   t1->SetBranchAddress("fer",&fer);
-   t1->SetBranchAddress("module",&module);
-   t1->SetBranchAddress("row",&row);
-   int start = -1;
-   //loops over a single track and fills vectors
-   int numgraphs = 6;
-   for(int j = 0; j<numgraphs; j++){
-           start ++;
-	   for(int i=1+bounds[event+j];i<=bounds[event+j+1];i++){
-		t1->GetEntry(i);
-      	
-		//Filling vectors for xz-plot
-		if(fer ==0 && module==1){
-			xpos[start].push_back((row-320)*ssdPitch-residuals[0]);
-			zpos[start].push_back(station0_zpos);
-		}else if(fer ==0 && module==3){
-			xpos[start].push_back((row-320)*ssdPitch-residuals[1]);
-			zpos[start].push_back(station0_zpos+station_thickness);
-		}else if(fer ==1 && module==1){
-			xpos[start].push_back((row-320)*ssdPitch-residuals[2]);
-			zpos[start].push_back(station1_zpos);
-		}else if(fer ==1 && module==3){
-			xpos[start].push_back((row-320)*ssdPitch-residuals[3]);
-			zpos[start].push_back(station1_zpos+station_thickness);
-		}else if(fer ==2 && module==0){
-			xpos[start].push_back(-(row)*ssdPitch-residuals[4]);
-			zpos[start].push_back(station2_zpos);
-		}else if(fer ==2 && module==1){
-			xpos[start].push_back((row)*ssdPitch-residuals[5]);
-			zpos[start].push_back(station2_zpos);
-		}	
-	
-	   }
-	}
-       TGraph** xzPlot_array = new TGraph*[numgraphs]; 
-       for (int i=0;i<numgraphs;i++) { 
-	     if(xpos[i].size()!=0){
-		     Double_t xlist[xpos[i].size()], zlist[xpos[i].size()];
-		     for(int j = 0; j<xpos[i].size(); j++){
-			   xlist[j] = xpos[i][j];
-			   zlist[j] = zpos[i][j];
-			   }
+   //TF1 *x_fit = new TF1("x_fit","[1]*x+[0]",-200,1200);
+   TF1 *y_fit = new TF1("y_fit","[3]*x+[2]",-200,1200);
 
-		     xzPlot_array[i] = new TGraph(xpos[i].size(),zlist,xlist);
-	     	     }
-             }
-   TCanvas *ce4 = new TCanvas("ce4","ce4",1800,700);
-   ce4->Divide(3,2);
-   for(int i=0;i<numgraphs;i++){
-	if(xpos[i].size()!=0){
-	        xzPlot_array[i]->SetTitle(Form("Event %d xz-Hits",event+i));
-        	xzPlot_array[i]->GetYaxis()->SetTitle("x-position mm");
-        	xzPlot_array[i]->GetXaxis()->SetTitle("z-position mm");
-		xzPlot_array[i]->GetYaxis()->SetRangeUser(-45,45);
-        	xzPlot_array[i]->GetXaxis()->SetRangeUser(-200,1200);
-        	ce4->cd(i+1);
-   		xzPlot_array[i]->Draw("AP*");
-		TF1 *fit = new TF1("fit","[0]*x+[1]",-200,1200);
-		xzPlot_array[i]->Fit(fit,"Q");
-		}
-	}
-   
-}
+   //TF1 *xwithout_rot_fit = new TF1("xwithout_rot_fit","[5]*x+[4]",-200,1200);
+   TF1 *ywithout_rot_fit = new TF1("ywithout_rot_fit","[7]*x+[6]",-200,1200);
+
+   //x_event->Fit(x_fit,"Q");
+   y_event->Fit(y_fit,"Q"); //fit single event
+
+   //xwithout_rot_event->Fit(xwithout_rot_fit,"Q"); 
+   ywithout_rot_event->Fit(ywithout_rot_fit,"Q"); 
 
 
-//.........................................................................
+   int counting=0;
+   for(int i = 0; i<yzpos.size();i++){
+        if(ypos[i].size()!=0 && yzpos[i].size()!=0){
+           //double x_exp = x_fit->Eval(zfinal[counting],0,0);
+           double y_exp = y_fit->Eval(zfinal[counting],0,0);
 
-double with_fit(vector<double>residuals, int event){
+           //double xwithout_rot_exp = xwithout_rot_fit->Eval(zfinal[counting],0,0);
+           double ywithout_rot_exp = ywithout_rot_fit->Eval(zfinal[counting],0,0);
 
-    //Input: vector of offsets and starting event
-    // Returns chi squared of a single track
+           //double x_obs = xfinal[counting];
+           double y_obs = yfinal[counting];
 
-   vector<double> xpos;
-   vector<double> zpos;//store x,z positions
-   
+           //double xwithout_rot_obs = xwithout_rot[counting];
+           double ywithout_rot_obs = ywithout_rot[counting];
 
-   //Read in data from SSD.root tree 
-   TFile *f = new TFile(infile);
-   TTree *t1 = (TTree*)f->Get("SSDtree");
-   int fer, module, row;
-   t1->SetBranchAddress("fer",&fer);
-   t1->SetBranchAddress("module",&module);
-   t1->SetBranchAddress("row",&row);
-   
-   //loops over a single track and fills vectors
-   for(int i=1+bounds[event];i<=bounds[event+1];i++){
-	t1->GetEntry(i);
-      	
-	//Filling vectors for xz-plot
-	if(fer ==0 && module==1){
-		xpos.push_back((row-320)*ssdPitch-residuals[0]);
-		zpos.push_back(station0_zpos);		
-	}else if(fer ==0 && module==3){
-		xpos.push_back((row-320)*ssdPitch-residuals[1]);
-		zpos.push_back(station0_zpos+station_thickness);		
-	}else if(fer ==1 && module==1){
-		xpos.push_back((row-320)*ssdPitch-residuals[2]);
-		zpos.push_back(station1_zpos);		
-	}else if(fer ==1 && module==3){
-		xpos.push_back((row-320)*ssdPitch-residuals[3]);
-		zpos.push_back(station1_zpos+station_thickness);		
-	}else if(fer ==2 && module==0){
-		xpos.push_back(-(row)*ssdPitch-residuals[4]);
-		zpos.push_back(station2_zpos);
-	}else if(fer ==2 && module==1){
-		xpos.push_back((row)*ssdPitch-residuals[5]);
-		zpos.push_back(station2_zpos);		
-	
-	}	
-	
+           counting ++;
 
+           //residualx_array[i]->Fill((x_exp-x_obs)*sqrt(12)/0.06);
+           residualy_array[i]->Fill((y_exp-y_obs)*sqrt(12)/0.06);
+
+           //baselinex_array[i]->Fill((xwithout_rot_exp-xwithout_rot_obs)*sqrt(12)/0.06);
+           baseliney_array[i]->Fill((ywithout_rot_exp-ywithout_rot_obs)*sqrt(12)/0.06);
+           
+           //chix_with += pow((x_exp-x_obs)*sqrt(12)/0.06,2);
+           chiy_with += pow((y_exp-y_obs)*sqrt(12)/0.06,2);
+           //chix_without += pow((xwithout_rot_exp-xwithout_rot_obs)*sqrt(12)/0.06,2);
+           chiy_without += pow((ywithout_rot_exp-ywithout_rot_obs)*sqrt(12)/0.06,2);
+
+           }
+
+       }
 
    }
-        if(xpos.size()==0) return 0;
-        //Plotting xz-graph
-        Double_t xlist[xpos.size()], zlist[xpos.size()];
-	for(int i = 0; i<xpos.size(); i++){
-		xlist[i] = xpos[i];
-		zlist[i] = zpos[i];
-	}
-	TGraph* xzPlot = new TGraph(xpos.size(),zlist,xlist);
-	TF1 *fit = new TF1("fit","[0]*x+[1]",-200,1200);
-	xzPlot->Fit(fit,"Q");
-	TFitResultPtr r = xzPlot->Fit(fit,"S");
-	double chi2 = r->Chi2();
-	f->Close();
-	return chi2;
+   //baseliney_array[4]->(baseliney_array[5]); 
+   //baseliney_array[6]->Add(baseliney_array[7]);
+   //All plotting and statistics for x
+   //TCanvas *ce4 = new TCanvas("ce4","ce4",1400,700);
+   //ce4->Divide(3,4);
+   /*
+   cout<<endl<<"x with rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<residualx_array[i]->GetMean()<<"   "<<residualx_array[i]->GetStdDev()<<endl;
+      ce4->cd(i+1);
+      residualx_array[i]->GetYaxis()->SetTitle("counts");
+      residualx_array[i]->GetXaxis()->SetTitle("residual");
+      residualx_array[i]->Draw();
+   }
+   cout<<endl<<"x without rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<baselinex_array[i]->GetMean()<<"   "<<baselinex_array[i]->GetStdDev()<<endl;
+      ce4->cd(i+7);
+      baselinex_array[i]->GetYaxis()->SetTitle("counts");
+      baselinex_array[i]->GetXaxis()->SetTitle("residual");
+      baselinex_array[i]->Draw();
+   }
+
+   */
 
 
-	
+   //All plotting and statistics for y
+   TCanvas *c1 = new TCanvas("c1","c1",1400,700);
+   c1->Divide(3,4);
+   cout<<endl<<"y with rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<residualy_array[i]->GetMean()<<"   "<<residualy_array[i]->GetStdDev()<<endl;
+      c1->cd(i+1);
+      residualy_array[i]->GetYaxis()->SetTitle("counts");
+      residualy_array[i]->GetXaxis()->SetTitle("residual");
+      residualy_array[i]->Draw();
+   }
+   cout<<endl<<"y without rotations"<<endl;
+   for(int i=0;i<6;i++){
+      cout<<baseliney_array[i]->GetMean()<<"   "<<baseliney_array[i]->GetStdDev()<<endl;
+      c1->cd(i+7);
+      baseliney_array[i]->GetYaxis()->SetTitle("counts");
+      baseliney_array[i]->GetXaxis()->SetTitle("residual");
+      baseliney_array[i]->Draw();
+   }
+
+  cout<<endl;
+  //cout<<" x without rotations: "<<chix_without<<endl;
+  //cout<<" x with rotations: "<<chix_with<<endl;
+  cout<<" y without rotations: "<<chiy_without<<endl;
+  cout<<" y with rotations: "<<chiy_with<<endl;
+
+
+  return {0,0,0,0};//new_residuals; 
 }
-
-
-//.........................................................................
-
-
-vector<vector<double>> alignments;
 
 void track(){
  
-
-/*
-   xalign({0,0,0,0,0,0,0,0});
-   auto c = new TCanvas("c","c");
-   TH1* h1 = new TH1I("h1", "#chi^{2} with alignment", 104, 0, 4000);
-   TH1* h2 = new TH1I("h2", "#chi^{2} without alignment", 104, 0,4000);
- 
-   for(int i=0; i<accepted_tracks.size(); i++){
-        cout<<i<<", ";
-   	double with = with_fit({ 0.39866020, 0.17117942, -0.39348424, -0.38606108, 0.71839522, -0.022720397 },accepted_tracks[i]);
-	double without =with_fit({0,0,0,0,0,0,0,0},accepted_tracks[i]);
-        
-	h1->Fill(sqrt(12)*with/0.0036);
-	h2->Fill(sqrt(12)*without/0.0036);
-        
-   }
-  
-
-  THStack* hstack = new THStack("hstack", "Chi Squared Before and After Alignment");
-
-  
-  h1->SetLineColor(kRed);
-  h1->SetFillStyle(3354);
-  h1->SetLineWidth(2);
-  h1->Draw();
-
-  h2->SetLineColor(kBlue);
-  h2->SetFillStyle(3354);
-  h2->SetLineWidth(2);
-
-
-
-  hstack->Add(h2);
-  hstack->Add(h1);
-  hstack->Draw();
-  hstack->GetXaxis()->SetTitle("Chi Squared");
-  hstack->GetYaxis()->SetTitle("counts");
-  gPad->BuildLegend(0.75,0.75,0.95,0.95,"");
- */
 }
 
 
-
-
-
-
-
-
+//(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1]
+//THIS IS CORRECT
 
 
