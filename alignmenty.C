@@ -44,98 +44,97 @@ vector<double> yalign(vector<double> residuals,double size){
    for(int j=0; j<accepted_tracks.size(); j++){
 
       vector<vector<double>> ypos = {{},{},{},{},{},{},{},{}};
-      vector<vector<double>> yzpos = {{},{},{},{},{},{},{},{}};
-      vector<vector<double>> xpos = {{},{},{},{},{},{},{},{}};
-      vector<vector<double>> xzpos = {{},{},{},{},{},{},{},{}};
+      vector<vector<double>> zpos = {{},{},{},{},{},{},{},{}};
+      vector<int> xcounts = {0,0,0,0,0,0,0,0};
    
-   
-   for(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1];i++){
-	   t1->GetEntry(i);
-	      
-			//Filling vectors for xz-plot
-			if(fer ==0 && module==1){
-				xpos[0].push_back((-row+320)*ssdPitch-residuals[0]);
-				xzpos[0].push_back(station0_zpos);
-			}else if(fer ==0 && module==3){
-				xpos[1].push_back((-row+320)*ssdPitch-residuals[1]);
-				xzpos[1].push_back(station0_zpos+station_thickness);
-			}else if(fer ==1 && module==1){
-				xpos[2].push_back((-row+320)*ssdPitch-residuals[2]);
-				xzpos[2].push_back(station1_zpos);
-			}else if(fer ==1 && module==3){
-				xpos[3].push_back((-row+320)*ssdPitch-residuals[3]);
-				xzpos[3].push_back(station1_zpos+station_thickness);
-			}else if(fer ==2 && module==0){
-				xpos[4].push_back((row)*ssdPitch-residuals[4]);
-				xzpos[4].push_back(station2_zpos);
-			}else if(fer ==2 && module==1){
-				xpos[5].push_back((-row)*ssdPitch-residuals[5]);
-				xzpos[5].push_back(station2_zpos);
-			}else if(fer ==3 && module==0){
-				xpos[6].push_back((-row+640)*ssdPitch-residuals[6]);
-				xzpos[6].push_back(station2_zpos+station2_thickness);
-			}else if(fer ==3 && module==1){
-				xpos[7].push_back((row-640)*ssdPitch-residuals[7]);
-				xzpos[7].push_back(station2_zpos+station2_thickness);
-			
-         // y information
-		   }else if(fer ==0 && module==0){
+	   for(int i=bounds[accepted_tracks[j]]+1;i<=bounds[accepted_tracks[j]+1];i++){
+		   t1->GetEntry(i);
+		      
+				//Filling vectors for xz-plot
+				
+	      //Filling vectors for xz-plot
+	      if(fer ==0 && module==1){
+	         xcounts[0]++;
+	      }else if(fer ==0 && module==3){
+	         xcounts[1]++;
+	      }else if(fer ==1 && module==1){
+	         xcounts[2]++;
+	      }else if(fer ==1 && module==3){
+	         xcounts[3]++;
+	      }else if(fer ==2 && module==0){
+	         xcounts[4]++;
+	         xcounts[5]++;
+	      }else if(fer ==2 && module==1){
+	         xcounts[4]++;
+	         xcounts[5]++;
+	      }else if(fer ==3 && module==0){
+	         xcounts[6]++;
+	         xcounts[7]++;
+	      }else if(fer ==3 && module==1){
+	         xcounts[6]++;
+	         xcounts[7]++;
+	      }
+	      //Filling vectors for yz-plot
+	      else if(fer ==0 && module==0){
 	         ypos[0].push_back((row-320)*ssdPitch-residuals[0]);
-	         yzpos[0].push_back(station0_zpos);
+	         zpos[0].push_back(station0_zpos);
 	      }else if(fer ==0 && module==2){
 	         ypos[1].push_back((row-320)*ssdPitch-residuals[1]);
-	         yzpos[1].push_back(station0_zpos+station_thickness);      
+	         zpos[1].push_back(station0_zpos+station_thickness);      
 	      }else if(fer ==1 && module==0){
 	         ypos[2].push_back((row-320)*ssdPitch-residuals[2]);
-	         yzpos[2].push_back(station1_zpos);      
+	         zpos[2].push_back(station1_zpos);      
 	      }else if(fer ==1 && module==2){
 	         ypos[3].push_back((row-320)*ssdPitch-residuals[3]);
-	         yzpos[3].push_back(station1_zpos+station_thickness);      
+	         zpos[3].push_back(station1_zpos+station_thickness);      
 	      }else if(fer ==2 && module==2){
 	         ypos[4].push_back((row-640)*ssdPitch-residuals[4]);
-	         yzpos[4].push_back(station2_zpos);  
-	      }else if(fer ==2 && module==3){ 
+	         zpos[4].push_back(station2_zpos);      
+	      }else if(fer ==2 && module==3){
 	         ypos[5].push_back(-(row-640)*ssdPitch-residuals[5]);
-	         yzpos[5].push_back(station2_zpos);     
+	         zpos[5].push_back(station2_zpos);      
 	      }else if(fer ==3 && module==2){
 	         ypos[6].push_back((row-640)*ssdPitch-residuals[6]);
-	         yzpos[6].push_back(station2_zpos+station2_thickness);  
+	         zpos[6].push_back(station2_zpos+station2_thickness);      
 	      }else if(fer ==3 && module==3){
 	         ypos[7].push_back(-(row-640)*ssdPitch-residuals[7]);
-	         yzpos[7].push_back(station2_zpos+station2_thickness);
-	      }  	
-	
-	
+	         zpos[7].push_back(station2_zpos+station2_thickness);
+	      }  
 	   }
-	  
 
 
-	  
 	   // graph of event
-	   int count = 0;	
-	   for(int i=0;i<ypos.size();i++)  if(ypos[i].size()!=0)  count ++;			
-	   Double_t ylist[count], zlist[count];
+	   int count = 0; 
+	   for(int i=0;i<ypos.size();i++)  if(ypos[i].size()!=0 && xcounts[i]!=0)  count ++;  
+	   
+      cout<<endl<<count<<endl;
+      Double_t ylist[count], zlist[count];
+
 
 	   int num = 0;
-	   for(int i=0;i<yzpos.size();i++){
-	 	   if(ypos[i].size()==0)continue;
-		   //if(yzpos[i][0]!=xzpos[i][0])continue;
+	   for(int i=0;i<ypos.size();i++){
+	      if(ypos[i].size() ==0 || xcounts[i]==0)continue;
 		   ylist[num] = getAverage(ypos[i]);
-		   zlist[num] = getAverage(yzpos[i]);
+		   zlist[num] = getAverage(zpos[i]);
 	      num++;	
 		}
 	  
-
+		
 	 
-	  TGraph* event = new TGraph(count,zlist,ylist);
-	  TF1 *fit_entire = new TF1("fit_entire","[1]*x+[0]",-200,1200);
-	  event->Fit(fit_entire,"Q"); 
-	  for(int i = 0; i<yzpos.size();i++){
-		if(ypos[i].size() !=0 && yzpos[i].size() !=0){
-			double delta_y = (getAverage(ypos[i])-fit_entire->Eval(yzpos[i][0],0,0));//calculate difference between fitted and actual data
+	   TGraph* event = new TGraph(count,zlist,ylist);
+	   TF1 *fit = new TF1("fit","[1]*x+[0]",-200,1200);
+	   event->Fit(fit,"Q"); 
+
+	   //cout<<endl;
+      //for(int i=0; i<count; i++)cout<<ylist[i]<<", ";
+      //cout<<endl;
+     
+		for(int i=0;i<ypos.size();i++){
+		   if(ypos[i].size() ==0 || xcounts[i]==0)continue;
+		   double delta_y = (getAverage(ypos[i])-fit->Eval(zpos[i][0],0,0));//calculate difference between fitted and actual data
 			residual_array[i]->Fill(delta_y*sqrt(12)/ssdPitch);
-			}
 		}
+
 
 	}	
 	   

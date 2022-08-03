@@ -89,7 +89,7 @@ double chi_squared(Double_t shift0, Double_t shift1,Double_t shift2,Double_t shi
    // graph of event
    int count = 0; 
    for(int i=0;i<4;i++)  if(ypos[i].size()!=0 && xcounts[i]!=0)  count ++;  
-   for(int i=0;i<4;i++) if(ypos[4+i].size()!=0 && xcounts[4+floor(i/1.9)]) count++;      
+   for(int i=0;i<4;i++) if(ypos[4+i].size()!=0 && xcounts[4+floor(i/1.9)]==0) count++;      
 
    Double_t ylist[count], zlist[count];
    int num = 0;
@@ -159,7 +159,7 @@ int yMinimization(const char * minName = "Minuit2",
    double step = 0.0001;
    // starting point
     
-   double variable[8] = { -1.4601788, -0.24812365, 1.6201245, 2.5574596, 0.54495041, -1.7392500, 5.4337097, 3.2299324 };
+   double variable[8] = {  -1.46018,  -0.90429,  0.174014,  0.729234,  2.67872,  2.83762,  3.73049,  3.85003};//{ -1.4601788, -0.24812365, 1.6201245, 2.5574596, 0.54495041, -1.7392500, 5.4337097, 3.2299324 };
    
  
    min->SetFunction(f);
@@ -172,7 +172,7 @@ int yMinimization(const char * minName = "Minuit2",
    min->SetVariable(4,"shift4",variable[4], step);
    min->SetVariable(5,"shift5",variable[5], step);
    min->SetVariable(6,"shift6",variable[6], step);
-   min->SetVariable(7,"shift7",variable[6], step);
+   min->SetVariable(7,"shift7",variable[7], step);
 
    // do the minimization
    min->Minimize(); 

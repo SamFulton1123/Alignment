@@ -10,7 +10,7 @@
 #include "printing.C"
 
 
-char infile[ ] = "../data/599/SSD2.root";
+char infile[ ] = "../data/599/SSD1.root";
 double station0_zpos = -170;
 double station1_zpos = 194;
 double station2_zpos = 768;
@@ -20,7 +20,7 @@ double ssdPitch = 0.06;
 double constr = 0.07;
 
 vector<double> xresiduals =  { -0.54759960, -0.25566729, 0.49941560, 0.54903480, -1.9639748, 0.46639482, -2.2882809, -0.088365250 };//300, { -0.48217263, -0.21014961, 0.50731036, 0.53800422, -2.0419823, 0.37994331, -2.4031378, -0.21027787 };
-vector<double> yresiduals =  {  -1.46018,  -0.90429,  0.174014,  0.729234,  2.67872,  2.83762,  3.73049,  3.85003};//{ 0.30217235, 1.1305285, 2.2554511, 2.8074963, -0.60025912, -2.8860684, 3.5960561, 1.3911136 };//300 { -1.4549245, -0.24419160, 1.6180551, 2.5482706, 0.52150012, -1.7596827, 5.4426099, 3.2489963 };
+vector<double> yresiduals =   { -1.2834529, -0.27548232, 1.1979157, 1.9309231, -0.81951882, -3.1079977, 3.7253454, 1.5296846 };//{ 0.30217235, 1.1305285, 2.2554511, 2.8074963, -0.60025912, -2.8860684, 3.5960561, 1.3911136 };//300 { -1.4549245, -0.24419160, 1.6180551, 2.5482706, 0.52150012, -1.7596827, 5.4426099, 3.2489963 };
 vector<double> xcenters={xresiduals[4]/2+xresiduals[5]/2,xresiduals[6]/2+xresiduals[7]/2};
 vector<double> ycenters={yresiduals[4]/2+yresiduals[5]/2,yresiduals[6]/2+yresiduals[7]/2};
 
@@ -274,9 +274,7 @@ vector<int> find_accepted_tracks(){
       double chi2x = rx->Chi2();
       
 
-	   //if(chi2y<200 && chi2x<200)*/
-
-      result.push_back(j);
+	   if(chi2y<0.04 && chi2x<0.04)result.push_back(j);
 
 	   }
    }
@@ -537,6 +535,7 @@ vector<double> theta_residuals(){
    int counting=0;
    for(int i = 0; i<xzpos.size();i++){
         if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
+           if(i>3 && xfinal[i]>-15)continue;
 		     double x_exp = x_fit->Eval(zfinal[counting],0,0);
            double y_exp = y_fit->Eval(zfinal[counting],0,0);
 
@@ -728,24 +727,23 @@ vector<double> beam_profile(){
       	}
       	
 	
-   }
-  
-  
-   // graph of x_event
-   int count = 0;	
-   for(int i=0;i<xpos.size();i++)  if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0)  count ++;
-   //Double_t ylist[count], zlist[count],zlist[count];
-   //cout<<endl<<count<<endl;
-   //if(count!=6)continue;
-   int num = 0;
-   for(int i=0;i<xzpos.size();i++){
-      if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0){
-   		beam_array[i]->Fill(getAverage(xpos[i]),getAverage(ypos[i]));
-   	   num++;
-   		}			
       }
-   
-   cout<<endl<<num<<endl;
+  
+  
+      // graph of x_event
+      int count = 0;	
+      for(int i=0;i<xpos.size();i++)  if(xpos[i].size()!=0 && xzpos[i].size()!=0 && ypos[i].size()!=0 && yzpos[i].size()!=0)  count ++;
+      //Double_t ylist[count], zlist[count],zlist[count];
+      //cout<<endl<<count<<endl;
+      //if(count!=6)continue;
+      int num = 0;
+      for(int i=0;i<xzpos.size();i++){
+         if(xpos[i].size()==0 || ypos[i].size()==0)continue;
+      	beam_array[i]->Fill(getAverage(xpos[i]),getAverage(ypos[i]));
+      	num++;					
+      }
+      
+      cout<<endl<<num<<endl;
 
    }
    
@@ -908,7 +906,7 @@ vector<double> testing(){
 
    //Fill lists to be used for plotting
    for(int i=0;i<ypos.size();i++){
-      if(ypos[i].size()!=0 ){
+      if(ypos[i].size()!=0 && xzpos[i].size()!=0){
          //if(yzpos[i][0]!=xzpos[i][0])continue;
          //double x = getAverage(xpos[i]);
          double y = getAverage(ypos[i]);
